@@ -56,7 +56,7 @@ module Shiori
                 when "paused" then [["再開する", "start"], ["読了にする", "finish"]]
                 else [] # 積読は「読み始める」をボタンで出している
                 end
-      options += [["総ページを直す", "total"], ["削除する", "delete"]]
+      options += [["書名・総ページを直す", "edit"], ["削除する", "delete"]]
       {
         type: "overflow", action_id: "menu:#{book.id}",
         options: options.map { |label, op| { text: plain(label), value: "#{op}:#{book.id}" } },
@@ -254,9 +254,9 @@ module Shiori
         "*記録*　`128` 今のページ　`+20` 進んだページ数　`#3 128` 本を番号で指定　`メロス 128` 書名の一部で指定",
         "*飛ばし読み*　`120-144 160-188` 読んだ範囲（`120〜144` でも可）。進み具合は読んだページの合計で数えます",
         "*追加*　`追加 書名 総ページ数`　複数行で一括追加　`追加 9784101006017`（ISBN から書名とページ数を調べる）",
-        "*状態*　`開始 #3`　`読了`　`中断 #3`　`総ページ #3 350`　`削除 #3`",
+        "*状態*　`開始 #3`　`読了`　`中断 #3`　`総ページ #3 350`　`書名 #3 新しい書名`　`削除 #3`",
         "*確認*　`一覧`（空のメッセージでも可）　`読了一覧`（今年読んだ本。`読了一覧 2025` で年を指定）　`取消`（直前の記録を取り消す）",
-        "ホームタブからも、本の追加、ページの記録、各本の「︙」で中断・読了・総ページ・削除ができます",
+        "ホームタブからも、本の追加、ページの記録、各本の「︙」で中断・読了・書名と総ページの修正・削除ができます",
       ].join("\n")
       { text: "使い方", blocks: [section(text)] }
     end
@@ -288,13 +288,17 @@ module Shiori
       ])
     end
 
-    def total_modal(book)
+    # 今の書名と総ページを入れた状態で開く。総ページは読んだ所より少なくできない
+    def edit_modal(book)
       min = [1, book.furthest_page].max
-      element = { type: "number_input", action_id: "value", is_decimal_allowed: false, min_value: min.to_s, focus_on_load: true }
-      element[:initial_value] = book.total_pages.to_s if book.total_pages
-      modal("set_total", "総ページを直す", "保存", { id: book.id, min: min }, [
-        section("*#{title(book)}*"),
-        { type: "input", block_id: "total", label: plain("総ページ数"), element: element },
+      total = { type: "number_input", action_id: "value", is_decimal_allowed: false, min_value: min.to_s }
+      total[:initial_value] = book.total_pages.to_s if book.total_pages
+      modal("edit_book", "書名・総ページを直す", "保存", { id: book.id, min: min }, [
+        {
+          type: "input", block_id: "title", label: plain("書名"),
+          element: { type: "plain_text_input", action_id: "value", initial_value: book.title, max_length: 200 },
+        },
+        { type: "input", block_id: "total", optional: book.total_pages.nil?, label: plain("総ページ数"), element: total },
       ])
     end
 

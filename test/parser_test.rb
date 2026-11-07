@@ -72,6 +72,11 @@ class ParserTest < Minitest::Test
     assert_equal "finish", P.parse("読了")[:kind]
   end
 
+  def test_rename_needs_book_number
+    assert_equal({ kind: "edit", target: { kind: "id", id: 3 }, title: "SICP 2nd", total_pages: nil }, P.parse("書名 #3 SICP 2nd"))
+    assert_equal "invalid", P.parse("書名 SICP")[:kind]
+  end
+
   def test_delete
     assert_equal({ kind: "delete", target: { kind: "id", id: 3 } }, P.parse("削除 #3"))
   end

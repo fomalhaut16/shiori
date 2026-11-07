@@ -9,6 +9,7 @@ module Shiori
   #   { kind: "page", target:, ranges: [[from, to], ...] }   飛ばし読み（120-144 160-188）
   #   { kind: "start" | "finish" | "pause" | "delete", target: }
   #   { kind: "total", target:, total_pages: }
+  #   { kind: "edit", target:, title:, total_pages: }   「書名 #3 新しい書名」と、書名・総ページの入力画面
   #   { kind: "add", items: [{ query:, total_pages:, title: }] }   title は追加画面で書名と ISBN を両方入れたとき
   #   { kind: "finished_list", year: }   year が nil なら今年
   #   { kind: "note", target:, text: }   ひとこと感想（入力画面からだけ作る）
@@ -23,6 +24,7 @@ module Shiori
       "pause" => "pause", "drop" => "pause", "中断" => "pause",
       "delete" => "delete", "rm" => "delete", "削除" => "delete",
       "total" => "total", "総ページ" => "total", "ページ数" => "total",
+      "rename" => "rename", "書名" => "rename",
       "list" => "list", "ls" => "list", "一覧" => "list", "いちらん" => "list", "状況" => "list",
       "finished" => "finished_list", "読了一覧" => "finished_list", "読んだ本" => "finished_list",
       "undo" => "undo", "取消" => "undo", "取り消し" => "undo", "とりけし" => "undo", "戻す" => "undo",
@@ -108,6 +110,11 @@ module Shiori
         { kind: verb, year: rest.to_i }
       when "undo" then { kind: "undo", batch_id: nil }
       when "start", "finish", "pause" then { kind: verb, target: parse_target(rest) }
+      when "rename"
+        # 書名に数字が入ることもあるので、本は番号でだけ指定する
+        m = rest.match(/\A#?(\d+)\s+(.+)\z/) or return invalid("「書名 #3 新しい書名」のように本の番号と新しい書名を書いてください")
+
+        { kind: "edit", target: { kind: "id", id: m[1].to_i }, title: unquote(m[2]), total_pages: nil }
       when "delete"
         # 取り違えると困るので、本の指定を必須にする
         target = parse_target(rest) or return invalid("削除する本を「削除 #3」のように指定してください")

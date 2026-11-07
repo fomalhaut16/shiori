@@ -71,7 +71,8 @@ module Shiori
 
         # 飛ばした所は読んだことにしない。読んだページ数はそのまま残す
         finished_or_updated(c.store.apply_change(book, { status: "finished" }, c.source), c)
-      when "total" then set_total(book, cmd[:total_pages], c)
+      when "total" then edit(book, c, total: cmd[:total_pages])
+      when "edit" then edit(book, c, title: cmd[:title], total: cmd[:total_pages])
       when "delete"
         change = c.store.apply_change(book, { status: "deleted" }, c.source)
         Render.deleted(book, change.batch_id)
@@ -160,15 +161,29 @@ module Shiori
       Render.status_changed(load_views(c.store, [change.after], c.store.now).first, note, change.batch_id)
     end
 
-    def set_total(book, total, c)
-      if total < book.furthest_page
-        return Render.error("読んだ所（#{book.furthest_page}p まで）より少ない総ページは設定できません")
+    # 書名と総ページを直す。nil の項目は変えない
+    def edit(book, c, title: nil, total: nil)
+      patch = {}
+      if title
+        title = title.strip
+        return Render.error("書名を入れてください") if title.empty?
+
+        patch[:title] = title
       end
+      if total
+        if total < book.furthest_page
+          return Render.error("読んだ所（#{book.furthest_page}p まで）より少ない総ページは設定できません")
+        end
 
-      change = c.store.apply_change(book, { total_pages: total }, c.source)
-      return Render.info("#{Render.title(book)} の総ページはすでに #{total}p です") unless change
+        patch[:total_pages] = total
+      end
+      change = c.store.apply_change(book, patch, c.source)
+      return Render.info("#{Render.title(book)} は変わっていません") unless change
 
-      Render.status_changed(load_views(c.store, [change.after], c.store.now).first, "の総ページを #{total}p にしました", change.batch_id)
+      done = []
+      done << "書名を直し" if change.after.title != book.title
+      done << "総ページを #{change.after.total_pages}p にし" if change.after.total_pages != book.total_pages
+      Render.status_changed(load_views(c.store, [change.after], c.store.now).first, "の#{done.join('、')}ました", change.batch_id)
     end
 
     def add(items, c)

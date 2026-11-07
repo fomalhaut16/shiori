@@ -6,7 +6,7 @@ module Shiori
   # SQLite への読み書きをまとめる。本の状態は books に、変更の履歴は events に残す。
   class Store
     Change = Data.define(:before, :after, :batch_id)
-    SNAPSHOT_KEYS = %i[current_page read_ranges status total_pages started_at finished_at updated_at].freeze
+    SNAPSHOT_KEYS = %i[title current_page read_ranges status total_pages started_at finished_at updated_at].freeze
 
     def self.open(path, migrations_dir: File.join(ROOT, "db", "migrations"), clock: -> { Time.now })
       db = SQLite3::Database.new(path, results_as_hash: true)
@@ -115,6 +115,10 @@ module Shiori
       attrs = {}
       events = []
 
+      if patch.key?(:title) && patch[:title] != before.title
+        attrs[:title] = patch[:title]
+        events << base.merge(kind: "title", from_title: before.title, to_title: patch[:title])
+      end
       if patch.key?(:total_pages) && patch[:total_pages] != before.total_pages
         attrs[:total_pages] = patch[:total_pages]
         events << base.merge(kind: "total", from_total: before.total_pages, to_total: patch[:total_pages])
@@ -216,17 +220,20 @@ module Shiori
 
     def write_state(b)
       @db.execute(
-        "UPDATE books SET current_page = ?, read_ranges = ?, status = ?, total_pages = ?, started_at = ?, finished_at = ?, " \
-        "updated_at = ? WHERE id = ?",
-        [b.current_page, b.read_ranges, b.status, b.total_pages, b.started_at, b.finished_at, b.updated_at, b.id],
+        "UPDATE books SET title = ?, current_page = ?, read_ranges = ?, status = ?, total_pages = ?, started_at = ?, " \
+        "finished_at = ?, updated_at = ? WHERE id = ?",
+        [b.title, b.current_page, b.read_ranges, b.status, b.total_pages, b.started_at, b.finished_at, b.updated_at, b.id],
       )
     end
 
     def insert_event(batch_id:, book_id:, kind:, at:, source:, snapshot: nil, from_page: nil, to_page: nil, pages: 0,
-                     from_status: nil, to_status: nil, from_total: nil, to_total: nil)
-      @db.execute(<<~SQL, [batch_id, book_id, kind, from_page, to_page, pages, from_status, to_status, from_total, to_total, at, source, snapshot])
-        INSERT INTO events (batch_id, book_id, kind, from_page, to_page, pages, from_status, to_status, from_total, to_total, at, source, snapshot)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     from_status: nil, to_status: nil, from_total: nil, to_total: nil, from_title: nil, to_title: nil)
+      values = [batch_id, book_id, kind, from_page, to_page, pages, from_status, to_status, from_total, to_total,
+                from_title, to_title, at, source, snapshot]
+      @db.execute(<<~SQL, values)
+        INSERT INTO events (batch_id, book_id, kind, from_page, to_page, pages, from_status, to_status, from_total, to_total,
+                            from_title, to_title, at, source, snapshot)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       SQL
     end
   end

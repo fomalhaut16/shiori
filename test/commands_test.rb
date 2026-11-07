@@ -203,6 +203,15 @@ class CommandsTest < Minitest::Test
     assert_match "まだありません", run_text("読了一覧 2025")[:text]
   end
 
+  def test_rename_and_undo
+    add_book(@store, title: "旧い書名")
+    msg = run_text("書名 #1 『新しい書名 2』")
+    assert_match "書名を直しました", msg[:text]
+    assert_equal "新しい書名 2", @store.get_book(1).title
+    run_text("取消")
+    assert_equal "旧い書名", @store.get_book(1).title
+  end
+
   def test_list_shows_reading_and_tsundoku
     add_book(@store, title: "読んでる本", status: "reading")
     add_book(@store, title: "積んでる本")

@@ -127,10 +127,17 @@ class AppTest < Minitest::Test
     assert_equal "deleted", @store.get_book(1).status
   end
 
-  def test_total_modal_rejects_less_than_read
-    error = @app.ack_for("interactive", view_submission("set_total", { id: 1, min: 90 }, "total" => "80"))
-    assert_equal "errors", error[:response_action]
-    assert_nil @app.ack_for("interactive", view_submission("set_total", { id: 1, min: 90 }, "total" => "120"))
+  def test_edit_modal_validates_and_updates_title_and_total
+    ack = ->(values) { @app.ack_for("interactive", view_submission("edit_book", { id: 1, min: 90 }, values)) }
+    assert_equal "errors", ack.call("title" => "本", "total" => "80")[:response_action]
+    assert_equal "errors", ack.call("title" => " ", "total" => "120")[:response_action]
+    assert_nil ack.call("title" => "本", "total" => "120")
+
+    add_book(@store, title: "長いサブタイトル付きの書名", total: 100)
+    menu_select("edit:1")
+    assert_equal "edit_book", @slack.calls.last[1][:view][:callback_id]
+    @app.process("interactive", view_submission("edit_book", { id: 1, min: 1 }, "title" => "短い書名", "total" => "120"))
+    assert_equal ["短い書名", 120], @store.get_book(1).then { [_1.title, _1.total_pages] }
   end
 
   def test_add_book_modal_validates_and_adds

@@ -155,7 +155,7 @@ module Shiori
 
     # ボタンやメニューの名前と、開く入力画面
     MODALS = {
-      "log_page" => :page_modal, "total" => :total_modal, "delete" => :delete_modal, "note" => :note_modal,
+      "log_page" => :page_modal, "edit" => :edit_modal, "delete" => :delete_modal, "note" => :note_modal,
     }.freeze
 
     def submitted(view, block) = view.dig("state", "values", block, "value", "value").to_s
@@ -176,9 +176,10 @@ module Shiori
           elsif !from.empty? && (!from.match?(/\A\d+\z/) || from.to_i < 1) then ["from", "1 以上の整数で入力してください"]
           elsif !from.empty? && from.to_i > to.to_i then ["from", "「どこまで」より後ろになっています"]
           end
-        when "set_total"
+        when "edit_book"
           raw = submitted(view, "total")
-          if !raw.match?(/\A\d+\z/) || raw.to_i < meta["min"].to_i
+          if submitted(view, "title").strip.empty? then ["title", "書名を入れてください"]
+          elsif !raw.empty? && (!raw.match?(/\A\d+\z/) || raw.to_i < meta["min"].to_i)
             ["total", "#{meta['min']} 以上の整数で入力してください（読んだ所より少なくはできません）"]
           end
         when "add_book"
@@ -201,7 +202,9 @@ module Shiori
         else
           { kind: "page", target: target, ranges: [[from.to_i, to]] }
         end
-      when "set_total" then { kind: "total", target: target, total_pages: submitted(view, "total").to_i }
+      when "edit_book"
+        total = submitted(view, "total")
+        { kind: "edit", target: target, title: submitted(view, "title"), total_pages: total.empty? ? nil : total.to_i }
       when "delete_book" then { kind: "delete", target: target }
       when "finish_note" then { kind: "note", target: target, text: submitted(view, "note") }
       when "add_book"
