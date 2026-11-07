@@ -71,23 +71,26 @@ module Shiori
     end
 
     # 送るべき定期通知が残っていないか確かめる。失敗したら印を付けず、次の tick でやり直す。
+    # 通知をオフにしていても時刻の印は進めるので、あとでオンにしても過去の分はまとめて届かない。
     def tick
       now = @store.now
       weekly = Schedule.latest_weekly_slot(now, @config.weekly_day, @config.notify_hour)
       if Schedule.due?(@store, "weekly_slot", weekly)
-        @app.send_weekly
+        if @config.weekly_report
+          @app.send_weekly
+          @logger.info("weekly report sent")
+        end
         Schedule.mark_done(@store, "weekly_slot", weekly)
-        @logger.info("weekly report sent")
       end
 
       daily = Schedule.latest_daily_slot(now, @config.notify_hour)
       return unless Schedule.due?(@store, "daily_slot", daily)
 
-      # 週報と同じ時刻なら、週報に含まれるので催促は送らない
-      @app.send_nudge unless daily == weekly
+      # 週報を送る日は、週報に含まれるので催促は送らない
+      @app.send_nudge if @config.daily_nudge && !(@config.weekly_report && daily == weekly)
       # 大みそかの通知の時刻に、その年に読んだ本の一覧を送る
       day = Stats.jst(daily)
-      @app.send_year_report if day.month == 12 && day.day == 31
+      @app.send_year_report if @config.year_report && day.month == 12 && day.day == 31
       backup(now)
       @store.prune_events(Stats.iso(now - (30 * Stats::DAY)))
       Schedule.mark_done(@store, "daily_slot", daily)

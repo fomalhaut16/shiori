@@ -5,6 +5,7 @@ module Shiori
     :app_token, :bot_token, :allowed_users, :notify_channel,
     :db_path, :backup_dir, :log_path, :keep_backups,
     :notify_hour, :weekly_day, :stall_days,
+    :daily_nudge, :weekly_report, :year_report,
   ) do
     # .env を読み、足りない値は既定値で埋める。必須の値がなければ例外にする。
     def self.load(root = ROOT, env = ENV)
@@ -17,6 +18,8 @@ module Shiori
         value
       end
       path = ->(key, default) { File.expand_path(fetch.call(key, default), root) }
+      # 定期通知は既定でオフ。on / true / 1 / yes でオンにする
+      flag = ->(key) { %w[on true 1 yes].include?(env[key].to_s.strip.downcase) }
 
       allowed = fetch.call("ALLOWED_USER_IDS").split(",").map(&:strip).reject(&:empty?)
       new(
@@ -31,6 +34,9 @@ module Shiori
         notify_hour: Integer(fetch.call("NOTIFY_HOUR", "21")),
         weekly_day: Integer(fetch.call("WEEKLY_DAY", "0")),
         stall_days: Integer(fetch.call("STALL_DAYS", "3")),
+        daily_nudge: flag.call("DAILY_NUDGE"),
+        weekly_report: flag.call("WEEKLY_REPORT"),
+        year_report: flag.call("YEAR_REPORT"),
       )
     end
 

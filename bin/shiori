@@ -20,7 +20,9 @@ if ARGV.first == "check"
   puts "allowed    : #{config.allowed_users.join(', ')}"
   puts "notify to  : #{config.notify_channel}"
   puts "database   : #{config.db_path}"
-  puts "schedule   : 毎日 #{config.notify_hour}時 / 週報は#{%w[日 月 火 水 木 金 土][config.weekly_day]}曜"
+  onoff = ->(v) { v ? "オン" : "オフ" }
+  puts "schedule   : #{config.notify_hour}時 / 催促 #{onoff.call(config.daily_nudge)}・" \
+       "週報（#{%w[日 月 火 水 木 金 土][config.weekly_day]}曜）#{onoff.call(config.weekly_report)}・年末の一覧 #{onoff.call(config.year_report)}"
   exit(app["ok"] ? 0 : 1)
 end
 
