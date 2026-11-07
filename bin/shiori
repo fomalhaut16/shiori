@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# 使い方:
+#   ruby bin/shiori         常駐して Slack からの操作と定期通知を処理する
+#   ruby bin/shiori check   .env の設定と Slack のトークンを確かめて終わる
+
+require "bundler/setup"
+require_relative "../lib/shiori"
+
+config = Shiori::Config.load
+
+if ARGV.first == "check"
+  bot = Shiori::SlackClient.new(config.bot_token).call("auth.test", {})
+  puts "bot token  : OK (#{bot['team']} / #{bot['user']})"
+  uri = URI("https://slack.com/api/apps.connections.open")
+  req = Net::HTTP::Post.new(uri, "authorization" => "Bearer #{config.app_token}")
+  app = JSON.parse(Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }.body)
+  puts "app token  : #{app['ok'] ? 'OK' : "NG (#{app['error']})"}"
+  puts "allowed    : #{config.allowed_users.join(', ')}"
+  puts "notify to  : #{config.notify_channel}"
+  puts "database   : #{config.db_path}"
+  puts "schedule   : 毎日 #{config.notify_hour}時 / 週報は#{%w[日 月 火 水 木 金 土][config.weekly_day]}曜"
+  exit(app["ok"] ? 0 : 1)
+end
+
+Shiori::Runner.new(config).run

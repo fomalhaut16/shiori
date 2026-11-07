@@ -1,0 +1,30 @@
+# Slack アプリの定義。https://api.slack.com/apps →「Create New App」→「From an app manifest」に貼り付ける。
+# Socket Mode を使うので、受け口の URL は要らない。
+display_information:
+  name: shiori
+  description: 読書の進み具合を記録して、積読を減らすための個人用 bot
+  background_color: "#2f3e46"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: shiori
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write    # 返信と定期通知
+      - im:history    # DM を読む（止まっている間の分も拾う）
+      - im:write      # 自分との DM を開く
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_home_opened
+      - message.im
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
