@@ -41,7 +41,7 @@ module Shiori
 
     def plain_title(book) = "『#{book.title}』"
 
-    def start_button(book, label = "読む: #{book.title}") = button(label, "start_book:#{book.id}", book.id.to_s)
+    def start_button(book) = button("読み始める", "start_book:#{book.id}", book.id.to_s)
 
     def undo_button(batch_id) = button("取り消す", "undo:#{batch_id}", batch_id)
 
@@ -54,8 +54,7 @@ module Shiori
       options = case book.status
                 when "reading" then [["中断する", "pause"], ["読了にする", "finish"]]
                 when "paused" then [["再開する", "start"], ["読了にする", "finish"]]
-                when "tsundoku" then [["読み始める", "start"]]
-                else []
+                else [] # 積読は「読み始める」をボタンで出している
                 end
       options += [["総ページを直す", "total"], ["削除する", "delete"]]
       {
@@ -156,7 +155,7 @@ module Shiori
       lines << "総ページは「総ページ ##{book.id} 320」のように設定できます" unless book.total_pages
       {
         text: "#{plain_title(book)} を積読に追加しました",
-        blocks: [section(lines.join("\n")), actions([start_button(book, "読み始める"), undo_button(batch_id)])],
+        blocks: [section(lines.join("\n")), actions([start_button(book), undo_button(batch_id)])],
       }
     end
 
@@ -167,16 +166,17 @@ module Shiori
 
     def pages_label(book) = book.total_pages ? "#{book.total_pages}p" : "総ページ未設定"
 
-    def tsundoku_blocks(o, with_buttons:)
+    # 古い順に SHELF_LIMIT 冊まで。各本の下に「読み始める」とメニューを置く
+    def tsundoku_blocks(o)
       return [section("積読はありません 🎉")] if o.tsundoku_count.zero?
 
       blocks = [section("*積読 #{o.tsundoku_count}冊*（古い順）")]
       o.tsundoku.each do |b|
-        blocks << section("##{b.id} #{title(b)}　#{pages_label(b)}・積んで#{Stats.days_between(b.created_at, o.now)}日", menu(b))
+        blocks << section("##{b.id} #{title(b)}　#{pages_label(b)}")
+        blocks << actions([start_button(b), menu(b)])
       end
       rest = o.tsundoku_count - o.tsundoku.size
       blocks << context("…ほか#{rest}冊") if rest.positive?
-      blocks << actions(o.tsundoku.first(3).map { |b| start_button(b) }) if with_buttons
       blocks
     end
 
@@ -198,7 +198,7 @@ module Shiori
       o.reading.each { |v| blocks.concat(book_blocks(v)) }
       blocks.concat(paused_blocks(o.paused))
       blocks << DIVIDER
-      blocks.concat(tsundoku_blocks(o, with_buttons: o.reading.empty?))
+      blocks.concat(tsundoku_blocks(o))
       blocks << context("今年の読了 #{o.finished_this_year}冊")
     end
 
@@ -244,15 +244,9 @@ module Shiori
       }
     end
 
-    def suggest(books, now)
-      lines = books.map { |b| "##{b.id} #{title(b)}　積んで#{Stats.days_between(b.created_at, now)}日" }
-      {
-        text: "積読から1冊選びませんか",
-        blocks: [
-          section("読書中の本がありません。積読から1冊どうですか？\n#{lines.join("\n")}"),
-          actions(books.map { |b| start_button(b) }),
-        ],
-      }
+    def suggest(books)
+      rows = books.map { |b| section("##{b.id} #{title(b)}　#{pages_label(b)}", start_button(b)) }
+      { text: "積読から1冊選びませんか", blocks: [section("読書中の本がありません。積読から1冊どうですか？"), *rows] }
     end
 
     def help

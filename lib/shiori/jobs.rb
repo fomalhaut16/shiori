@@ -40,7 +40,7 @@ module Shiori
       return nil if picks.empty?
 
       store.set_meta("last_suggested_at", Stats.iso(now))
-      Render.suggest(picks, now)
+      Render.suggest(picks)
     end
   end
 end
