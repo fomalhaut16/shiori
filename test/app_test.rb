@@ -133,6 +133,23 @@ class AppTest < Minitest::Test
     assert_nil @app.ack_for("interactive", view_submission("set_total", { id: 1, min: 90 }, "total" => "120"))
   end
 
+  def test_add_book_modal_validates_and_adds
+    @app.process("interactive", {
+      "type" => "block_actions", "user" => { "id" => OWNER }, "trigger_id" => "T1",
+      "actions" => [{ "action_id" => "add_book", "value" => "add" }],
+    })
+    assert_equal "add_book", @slack.calls.last[1][:view][:callback_id]
+
+    errors = ->(values) { @app.ack_for("interactive", view_submission("add_book", {}, values)) }
+    assert_equal "errors", errors.call("title" => "", "isbn" => "", "total" => "")[:response_action]
+    assert_equal "errors", errors.call("title" => "", "isbn" => "9784000000002", "total" => "")[:response_action]
+    assert_nil errors.call("title" => "新しい本", "isbn" => "", "total" => "250")
+
+    @app.process("interactive", view_submission("add_book", {}, "title" => "新しい本", "isbn" => "", "total" => "250"))
+    book = @store.get_book(1)
+    assert_equal ["新しい本", 250, "tsundoku"], [book.title, book.total_pages, book.status]
+  end
+
   def test_pick_book_button_runs_original_command
     add_book(@store, title: "A", status: "reading")
     add_book(@store, title: "B", status: "reading")

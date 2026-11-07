@@ -29,7 +29,7 @@ class StatsTest < Minitest::Test
   def book(total:, ranges:, current:)
     Shiori::Book.new(id: 1, title: "t", author: nil, total_pages: total, current_page: current, read_ranges: JSON.generate(ranges),
                      status: "reading", isbn: nil, created_at: "2026-10-01T00:00:00Z", started_at: "2026-10-29T00:00:00Z",
-                     finished_at: nil, updated_at: "2026-11-01T00:00:00Z", last_nudged_at: nil)
+                     finished_at: nil, updated_at: "2026-11-01T00:00:00Z", last_nudged_at: nil, note: nil)
   end
 
   def test_progress_bar_maps_read_places

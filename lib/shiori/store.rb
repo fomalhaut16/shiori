@@ -72,9 +72,16 @@ module Shiori
 
     def count_by_status(status) = @db.get_first_value("SELECT COUNT(*) FROM books WHERE status = ?", [status])
 
-    def finished_since(iso)
-      to_books(@db.execute("SELECT * FROM books WHERE status = 'finished' AND finished_at >= ? ORDER BY finished_at", [iso]))
+    def finished_since(iso) = finished_between(iso, "9999")
+
+    def finished_between(from_iso, to_iso)
+      to_books(@db.execute(<<~SQL, [from_iso, to_iso]))
+        SELECT * FROM books WHERE status = 'finished' AND finished_at >= ? AND finished_at < ? ORDER BY finished_at
+      SQL
     end
+
+    # ひとこと感想は履歴に残さず、書き直したら上書きする
+    def set_note(id, text) = @db.execute("UPDATE books SET note = ? WHERE id = ?", [text, id])
 
     def page_events_since(iso)
       @db.execute("SELECT * FROM events WHERE kind = 'page' AND undone = 0 AND at >= ? ORDER BY id", [iso])

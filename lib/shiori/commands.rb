@@ -31,6 +31,13 @@ module Shiori
 
     def finished_this_year(store, now) = store.finished_since(Stats.iso(Stats.start_of_jst_year(now))).size
 
+    # year 年（日本時間）に読み終えた本
+    def finished_list(store, year)
+      from = Time.utc(year, 1, 1) - Stats::JST_OFFSET
+      to = Time.utc(year + 1, 1, 1) - Stats::JST_OFFSET
+      Render.finished_list(store.finished_between(Stats.iso(from), Stats.iso(to)), year)
+    end
+
     def execute(cmd, c)
       case cmd[:kind]
       when "invalid" then return { text: cmd[:message], blocks: Render.error(Render.escape(cmd[:message]))[:blocks] + Render.help[:blocks] }
@@ -38,6 +45,7 @@ module Shiori
       when "list" then return Render.overview(load_overview(c.store, c.store.now))
       when "undo" then return undo(cmd[:batch_id], c)
       when "add" then return add(cmd[:items], c)
+      when "finished_list" then return finished_list(c.store, cmd[:year] || Stats.jst(c.store.now).year)
       end
 
       resolved = resolve(cmd[:target], cmd[:kind], c.store)
@@ -67,6 +75,10 @@ module Shiori
       when "delete"
         change = c.store.apply_change(book, { status: "deleted" }, c.source)
         Render.deleted(book, change.batch_id)
+      when "note"
+        text = cmd[:text].to_s.strip
+        c.store.set_note(book.id, text.empty? ? nil : text)
+        Render.info(text.empty? ? "#{Render.title(book)} のひとことを消しました" : "📝 #{Render.title(book)} にひとことを残しました")
       else Render.error("知らないコマンドです")
       end
     end
@@ -185,14 +197,15 @@ module Shiori
           rescue StandardError
             nil
           end
-          unless info
+          # 書名も入れてあれば、書誌が見つからなくてもその書名で登録する
+          unless info || item[:title]
             lines << "・ISBN #{isbn} の書誌が見つかりませんでした。「追加 書名 ページ数」で登録してください"
             next
           end
         end
 
         book, batch_id = c.store.create_book(
-          title: info&.title || item[:query], author: info&.author,
+          title: item[:title] || info&.title || item[:query], author: info&.author,
           total_pages: item[:total_pages] || info&.total_pages, isbn: isbn, status: "tsundoku", source: c.source,
         )
         created = [book, batch_id]

@@ -9,7 +9,9 @@ module Shiori
   #   { kind: "page", target:, ranges: [[from, to], ...] }   飛ばし読み（120-144 160-188）
   #   { kind: "start" | "finish" | "pause" | "delete", target: }
   #   { kind: "total", target:, total_pages: }
-  #   { kind: "add", items: [{ query:, total_pages: }] }
+  #   { kind: "add", items: [{ query:, total_pages:, title: }] }   title は追加画面で書名と ISBN を両方入れたとき
+  #   { kind: "finished_list", year: }   year が nil なら今年
+  #   { kind: "note", target:, text: }   ひとこと感想（入力画面からだけ作る）
   #   { kind: "undo", batch_id: }  { kind: "list" }  { kind: "help" }
   #   { kind: "invalid", message: }
   # target は nil、{ kind: "id", id: }、{ kind: "query", text: } のどれか。
@@ -22,6 +24,7 @@ module Shiori
       "delete" => "delete", "rm" => "delete", "削除" => "delete",
       "total" => "total", "総ページ" => "total", "ページ数" => "total",
       "list" => "list", "ls" => "list", "一覧" => "list", "いちらん" => "list", "状況" => "list",
+      "finished" => "finished_list", "読了一覧" => "finished_list", "読んだ本" => "finished_list",
       "undo" => "undo", "取消" => "undo", "取り消し" => "undo", "とりけし" => "undo", "戻す" => "undo",
       "help" => "help", "ヘルプ" => "help", "?" => "help", "使い方" => "help",
     }.freeze
@@ -98,6 +101,11 @@ module Shiori
 
       case verb
       when "list", "help" then { kind: verb }
+      when "finished_list"
+        return { kind: verb, year: nil } if rest.empty?
+        return invalid("年は「読了一覧 2025」のように 4 桁で書いてください") unless rest.match?(/\A\d{4}\z/)
+
+        { kind: verb, year: rest.to_i }
       when "undo" then { kind: "undo", batch_id: nil }
       when "start", "finish", "pause" then { kind: verb, target: parse_target(rest) }
       when "delete"

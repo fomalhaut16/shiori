@@ -13,7 +13,7 @@ module Shiori
   # current_page は栞（最後に読んだページ）、read_ranges は読んだ範囲の JSON。
   Book = Data.define(
     :id, :title, :author, :total_pages, :current_page, :read_ranges, :status, :isbn,
-    :created_at, :started_at, :finished_at, :updated_at, :last_nudged_at,
+    :created_at, :started_at, :finished_at, :updated_at, :last_nudged_at, :note,
   ) do
     def self.from_row(row)
       new(**members.to_h { |m| [m, row[m.to_s]] })

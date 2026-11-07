@@ -180,6 +180,29 @@ class CommandsTest < Minitest::Test
     assert_nil @store.get_book(2)
   end
 
+  def test_add_with_title_and_unknown_isbn_uses_the_title
+    msg = Shiori::Commands.execute({ kind: "add", items: [{ query: "9784000000000", total_pages: 200, title: "自作の本" }] }, @ctx)
+    assert_match "積読に追加しました", msg[:text]
+    book = @store.get_book(1)
+    assert_equal ["自作の本", 200, "9784000000000"], [book.title, book.total_pages, book.isbn]
+  end
+
+  def test_finish_offers_note_and_list_shows_it
+    add_book(@store, title: "読み切る本", total: 100, status: "reading")
+    @clock.advance(days: 2)
+    msg = run_text("100")
+    assert_match "note:1", blocks_text(msg)
+
+    Shiori::Commands.execute({ kind: "note", target: { kind: "id", id: 1 }, text: "  面白かった \n" }, @ctx)
+    assert_equal "面白かった", @store.get_book(1).note
+
+    list = blocks_text(run_text("読了一覧"))
+    assert_match "2026年に読んだ本 1冊", list
+    assert_match "読み切る本", list
+    assert_match "面白かった", list
+    assert_match "まだありません", run_text("読了一覧 2025")[:text]
+  end
+
   def test_list_shows_reading_and_tsundoku
     add_book(@store, title: "読んでる本", status: "reading")
     add_book(@store, title: "積んでる本")

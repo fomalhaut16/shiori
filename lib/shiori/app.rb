@@ -89,7 +89,9 @@ module Shiori
         # メニューは選んだ項目の値に「操作:本の番号」が入っている
         name, id = action.dig("selected_option", "value").to_s.split(":") if name == "menu"
         id ||= action["value"]
-        if (modal = MODALS[name])
+        if name == "add_book"
+          guard(user) { @slack.call("views.open", { trigger_id: payload["trigger_id"], view: Render.add_modal }) }
+        elsif (modal = MODALS[name])
           guard(user) do
             book = @store.get_book(id.to_i)
             @slack.call("views.open", { trigger_id: payload["trigger_id"], view: Render.public_send(modal, book) }) if book && !book.deleted?
@@ -124,6 +126,10 @@ module Shiori
       @slack.post(@notify_channel, Jobs.weekly_report(@store, @store.now))
     end
 
+    def send_year_report
+      notify(Commands.finished_list(@store, Stats.jst(@store.now).year))
+    end
+
     def send_nudge
       message = Jobs.daily_nudge(@store, @store.now, @stall_days)
       @slack.post(@notify_channel, message) if message
@@ -149,7 +155,7 @@ module Shiori
 
     # ボタンやメニューの名前と、開く入力画面
     MODALS = {
-      "log_page" => :page_modal, "total" => :total_modal, "delete" => :delete_modal,
+      "log_page" => :page_modal, "total" => :total_modal, "delete" => :delete_modal, "note" => :note_modal,
     }.freeze
 
     def submitted(view, block) = view.dig("state", "values", block, "value", "value").to_s
@@ -175,6 +181,11 @@ module Shiori
           if !raw.match?(/\A\d+\z/) || raw.to_i < meta["min"].to_i
             ["total", "#{meta['min']} 以上の整数で入力してください（読んだ所より少なくはできません）"]
           end
+        when "add_book"
+          isbn = submitted(view, "isbn").strip
+          if submitted(view, "title").strip.empty? && isbn.empty? then ["title", "書名か ISBN を入れてください"]
+          elsif !isbn.empty? && Isbn.parse(isbn).nil? then ["isbn", "ISBN として正しくありません。番号を確かめてください"]
+          end
         end
       problem && { response_action: "errors", errors: { block => problem } }
     end
@@ -192,6 +203,13 @@ module Shiori
         end
       when "set_total" then { kind: "total", target: target, total_pages: submitted(view, "total").to_i }
       when "delete_book" then { kind: "delete", target: target }
+      when "finish_note" then { kind: "note", target: target, text: submitted(view, "note") }
+      when "add_book"
+        title = submitted(view, "title").strip
+        isbn = submitted(view, "isbn").strip
+        total = submitted(view, "total")
+        item = { query: isbn.empty? ? title : isbn, total_pages: total.empty? ? nil : total.to_i, title: title.empty? ? nil : title }
+        { kind: "add", items: [item] }
       end
     end
 
@@ -203,6 +221,7 @@ module Shiori
       when "undo" then { kind: "undo", batch_id: value }
       when "start_book", "start" then { kind: "start", target: { kind: "id", id: value.to_i } }
       when "pause", "finish" then { kind: name, target: { kind: "id", id: value.to_i } }
+      when "finished_list" then { kind: "finished_list", year: nil }
       end
     end
   end

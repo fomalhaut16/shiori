@@ -47,6 +47,8 @@ module Shiori
 
     def log_button(book, label = "記録") = button(label, "log_page:#{book.id}", book.id.to_s, "primary")
 
+    def note_button(book) = button(book.note ? "ひとことを直す" : "ひとこと感想を書く", "note:#{book.id}", book.id.to_s)
+
     # 本ごとの「︙」メニュー。選んだ値は「操作:本の番号」
     def menu(book)
       options = case book.status
@@ -119,7 +121,10 @@ module Shiori
         if b.started_at && b.finished_at
           lines << "#{Stats.days_between(b.started_at, b.finished_at) + 1}日で読了・今年 #{finished_this_year} 冊目"
         end
-        return { text: "#{plain_title(b)} を読み終えました", blocks: [section(lines.join("\n")), actions([undo_button(batch_id)])] }
+        return {
+          text: "#{plain_title(b)} を読み終えました",
+          blocks: [section(lines.join("\n")), actions([note_button(b), undo_button(batch_id)])],
+        }
       end
 
       head = label ? "#{label} を記録" : "#{from_page} → *#{b.current_page}*p"
@@ -201,7 +206,23 @@ module Shiori
 
     def home_view(o)
       hint = context("「ページを記録」のほか、DM に `128`（今のページ）、`+20`（進んだページ数）、`120-144 160-188`（読んだ範囲）と送っても記録できます。`?` で使い方")
-      { type: "home", blocks: [*overview_blocks(o), DIVIDER, hint] }
+      top = actions([button("本を追加", "add_book", "add", "primary"), button("今年読んだ本", "finished_list", "this_year")])
+      { type: "home", blocks: [top, *overview_blocks(o), DIVIDER, hint] }
+    end
+
+    # 読み終えた本の一覧。1 つのセクションに収まる文字数を超えないよう 10 冊ずつ分ける
+    def finished_list(books, year)
+      return info("#{year}年に読み終えた本はまだありません") if books.empty?
+
+      lines = books.map do |b|
+        days = b.started_at ? "　#{Stats.days_between(b.started_at, b.finished_at) + 1}日" : ""
+        note = b.note ? "\n　　#{escape(truncate(b.note, 200))}" : ""
+        "#{Stats.month_day(b.finished_at)}　#{title(b)}#{days}#{note}"
+      end
+      pages = books.sum { |b| b.read_count }
+      blocks = [header("#{year}年に読んだ本 #{books.size}冊"), context("読んだページ 計 #{pages}p")]
+      lines.each_slice(10) { |chunk| blocks << section(chunk.join("\n")) }
+      { text: "#{year}年に読んだ本 #{books.size}冊", blocks: blocks.first(50) }
     end
 
     def weekly(w)
@@ -238,10 +259,10 @@ module Shiori
       text = [
         "*記録*　`128` 今のページ　`+20` 進んだページ数　`#3 128` 本を番号で指定　`メロス 128` 書名の一部で指定",
         "*飛ばし読み*　`120-144 160-188` 読んだ範囲（`120〜144` でも可）。進み具合は読んだページの合計で数えます",
-        "*追加*　`追加 9784101006017`（ISBN から書名とページ数を取得）　`追加 書名 320`　複数行で一括追加",
+        "*追加*　`追加 書名 総ページ数`　複数行で一括追加　`追加 9784101006017`（ISBN から書名とページ数を調べる）",
         "*状態*　`開始 #3`　`読了`　`中断 #3`　`総ページ #3 350`　`削除 #3`",
-        "*確認*　`一覧`（空のメッセージでも可）　`取消`（直前の記録を取り消す）",
-        "ホームタブの各本の「︙」からも、中断・読了・総ページ・削除ができます",
+        "*確認*　`一覧`（空のメッセージでも可）　`読了一覧`（今年読んだ本。`読了一覧 2025` で年を指定）　`取消`（直前の記録を取り消す）",
+        "ホームタブからも、本の追加、ページの記録、各本の「︙」で中断・読了・総ページ・削除ができます",
       ].join("\n")
       { text: "使い方", blocks: [section(text)] }
     end
@@ -280,6 +301,31 @@ module Shiori
       modal("set_total", "総ページを直す", "保存", { id: book.id, min: min }, [
         section("*#{title(book)}*"),
         { type: "input", block_id: "total", label: plain("総ページ数"), element: element },
+      ])
+    end
+
+    def add_modal
+      text_input = ->(placeholder, focus) { { type: "plain_text_input", action_id: "value", placeholder: plain(placeholder), focus_on_load: focus } }
+      modal("add_book", "本を追加", "追加", {}, [
+        { type: "input", block_id: "title", optional: true, label: plain("書名"), element: text_input.call("ISBN だけなら空でよい", true) },
+        {
+          type: "input", block_id: "total", optional: true, label: plain("総ページ数"),
+          element: { type: "number_input", action_id: "value", is_decimal_allowed: false, min_value: "1" },
+        },
+        {
+          type: "input", block_id: "isbn", optional: true, label: plain("ISBN"),
+          hint: plain("入れると書名・著者・ページ数を調べます。書名と総ページを入れたなら不要です"),
+          element: text_input.call("9784101006017", false),
+        },
+      ])
+    end
+
+    def note_modal(book)
+      element = { type: "plain_text_input", action_id: "value", multiline: true, max_length: 500, focus_on_load: true }
+      element[:initial_value] = book.note if book.note
+      modal("finish_note", "ひとこと感想", "保存", { id: book.id }, [
+        section("*#{title(book)}*"),
+        { type: "input", block_id: "note", optional: true, label: plain("読んでみてどうでしたか"), element: element },
       ])
     end
 

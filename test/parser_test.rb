@@ -64,6 +64,14 @@ class ParserTest < Minitest::Test
     assert_equal "invalid", P.parse("144-120")[:kind]
   end
 
+  def test_finished_list
+    assert_equal({ kind: "finished_list", year: nil }, P.parse("読了一覧"))
+    assert_equal({ kind: "finished_list", year: 2025 }, P.parse("読了一覧 2025"))
+    assert_equal "invalid", P.parse("読了一覧 去年")[:kind]
+    # 「読了」は今までどおり読了の操作
+    assert_equal "finish", P.parse("読了")[:kind]
+  end
+
   def test_delete
     assert_equal({ kind: "delete", target: { kind: "id", id: 3 } }, P.parse("削除 #3"))
   end
