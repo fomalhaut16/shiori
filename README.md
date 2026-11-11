@@ -55,7 +55,7 @@ DM で `?` と送ると、文字で操作するときの一覧が出ます。
 
 ## セットアップ
 
-Ruby 3.3 以上と、Slack のワークスペースにアプリを追加できる権限が要ります。
+Ruby 3.2 以上と、Slack のワークスペースにアプリを追加できる権限が要ります。
 
 1. <https://api.slack.com/apps> で「Create New App」→「From an app manifest」を選び、`slack-manifest.yml` の中身を貼り付けます。
 2. 「Basic Information」→「App-Level Tokens」で、スコープ `connections:write` のトークン（`xapp-`）を作ります。

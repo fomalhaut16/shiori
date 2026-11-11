@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby ">= 3.3"
+ruby ">= 3.2"
 
 gem "sqlite3", "~> 2.0"
 # WebSocket のハンドシェイクとフレームの組み立てだけを担う、依存のない小さな gem
