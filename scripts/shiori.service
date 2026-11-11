@@ -1,0 +1,23 @@
+# systemd user unit for running shiori inside WSL (Ubuntu 24.04).
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/shiori.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now shiori
+#   sudo loginctl enable-linger $USER   # start at WSL boot without a login shell
+# Windows still has to keep WSL running; see scripts/install-wsl-task.ps1.
+
+[Unit]
+Description=shiori reading tracker bot (Slack Socket Mode)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/shiori
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/bundle3.2 exec ruby bin/shiori
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=default.target
