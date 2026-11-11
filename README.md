@@ -71,6 +71,32 @@ Ruby 3.2 以上と、Slack のワークスペースにアプリを追加でき�
 
 6. 管理者の PowerShell で `scripts\install-task.ps1` を実行すると、PC の起動時に自動で動くようになります。試しに動かすだけなら `ruby bin/shiori` です。
 
+### WSL で動かす
+
+Windows の Smart App Control がオンだと、Windows に入れた Ruby はブロックされて動きません。その場合は WSL（Ubuntu 24.04）の中で動かします。
+
+1. このリポジトリを WSL の `~/shiori` に置き、上の手順 4 と同じように `.env` を書きます。
+2. Ruby とライブラリを入れて、設定を確かめます。
+
+   ```bash
+   sudo apt install ruby-full
+   bundle3.2 config set --local path vendor/bundle
+   bundle3.2 install
+   bundle3.2 exec ruby bin/shiori check
+   ```
+
+3. systemd のサービスとして登録します。
+
+   ```bash
+   mkdir -p ~/.config/systemd/user
+   cp scripts/shiori.service ~/.config/systemd/user/
+   systemctl --user daemon-reload
+   systemctl --user enable --now shiori
+   sudo loginctl enable-linger $USER
+   ```
+
+4. 管理者の PowerShell で `scripts\install-wsl-task.ps1` を実行します。Windows にログオンすると WSL が起動し、動き続けるようになります。PC を再起動したあとは、ログオンするまで動きません。
+
 ## 運用
 
 | やりたいこと | 方法 |
@@ -79,6 +105,8 @@ Ruby 3.2 以上と、Slack のワークスペースにアプリを追加でき�
 | 止める・動かす | `Stop-ScheduledTask shiori` / `Start-ScheduledTask shiori` |
 | 自動起動をやめる | 管理者の PowerShell で `scripts\install-task.ps1 -Uninstall` |
 | バックアップから戻す | タスクを止め、`data\backups\shiori-<日付>.db` を `data\shiori.db` に上書きする |
+
+WSL で動かしているときは、止める・動かすのは `systemctl --user stop shiori` / `systemctl --user start shiori`、ログは `tail -f ~/shiori/data/shiori.log` です。
 
 記録は `data\shiori.db`（SQLite）にあり、毎日 21 時にバックアップを作って 30 日分を残します。
 PC が止まっている間に送った DM は、次に起動したときに履歴から読んで処理します。
