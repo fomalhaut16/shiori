@@ -47,6 +47,19 @@ class BookInfoTest < Minitest::Test
     assert_equal ["走れメロス", "太宰治", 290], [info.title, info.author, info.total_pages]
   end
 
+  def test_google_key_is_sent_only_when_given
+    urls = []
+    fetch = lambda { |url|
+      urls << url
+      url.include?("openbd") ? [nil] : { "items" => [{ "volumeInfo" => { "title" => "Book", "pageCount" => 300 } }] }
+    }
+    Shiori::BookInfo.lookup("9780063320222", fetch: fetch)
+    Shiori::BookInfo.lookup("9780063320222", fetch: fetch, google_key: "k+1")
+    google = urls.grep(/googleapis/)
+    refute_includes google[0], "key="
+    assert google[1].end_with?("&key=k%2B1")
+  end
+
   def test_network_errors_return_nil
     assert_nil Shiori::BookInfo.lookup("9784101006017", fetch: ->(_) { raise "offline" })
   end

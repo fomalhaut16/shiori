@@ -14,17 +14,19 @@ module Shiori
     def default_fetch(url)
       uri = URI(url)
       res = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 5) { |http| http.get(uri.request_uri) }
-      raise "#{url}: #{res.code}" unless res.is_a?(Net::HTTPSuccess)
+      # URL には API キーが入ることがあるので、エラーにはホストとパスだけを残す
+      raise "#{uri.host}#{uri.path}: #{res.code}" unless res.is_a?(Net::HTTPSuccess)
 
       JSON.parse(res.body.force_encoding(Encoding::UTF_8))
     end
 
-    # fetch は URL を受け取り、パース済みの JSON を返す
-    def lookup(isbn, fetch: method(:default_fetch))
+    # fetch は URL を受け取り、パース済みの JSON を返す。
+    # Google Books はキーなしの問い合わせを断るようになったので、google_key があれば付ける
+    def lookup(isbn, fetch: method(:default_fetch), google_key: nil)
       openbd = safely { from_openbd(isbn, fetch) }
       return openbd if openbd&.total_pages
 
-      google = safely { from_google_books(isbn, fetch) }
+      google = safely { from_google_books(isbn, fetch, google_key) }
       title = openbd&.title || google&.title or return nil
       Info.new(title: title, author: openbd&.author || google&.author, total_pages: google&.total_pages)
     end
@@ -46,8 +48,10 @@ module Shiori
       Info.new(title: title, author: clean_author(rec.dig("summary", "author")), total_pages: pages)
     end
 
-    def from_google_books(isbn, fetch)
-      v = fetch.call("https://www.googleapis.com/books/v1/volumes?q=isbn:#{isbn}").dig("items", 0, "volumeInfo") or return nil
+    def from_google_books(isbn, fetch, key = nil)
+      url = "https://www.googleapis.com/books/v1/volumes?q=isbn:#{isbn}"
+      url += "&key=#{URI.encode_www_form_component(key)}" if key
+      v = fetch.call(url).dig("items", 0, "volumeInfo") or return nil
       return nil if v["title"].to_s.empty?
 
       Info.new(
