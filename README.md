@@ -60,7 +60,7 @@ Ruby 3.2 以上と、Slack のワークスペースにアプリを追加でき�
 1. <https://api.slack.com/apps> で「Create New App」→「From an app manifest」を選び、`slack-manifest.yml` の中身を貼り付けます。
 2. 「Basic Information」→「App-Level Tokens」で、スコープ `connections:write` のトークン（`xapp-`）を作ります。
 3. 「Install App」でワークスペースに入れ、「Bot User OAuth Token」（`xoxb-`）を控えます。
-4. `.env.example` を `.env` にコピーし、2 つのトークンと自分の Slack メンバー ID（プロフィールの「︙」→「メンバー ID をコピー」）を書きます。
+4. `.env.example` を `.env` にコピーし、2 つのトークンと自分の Slack メンバー ID（プロフィールの「︙」→「メンバー ID をコピー」）を書きます。openBD に載っていない本（洋書など）も ISBN で調べたいときは、Google Books の API キーも `GOOGLE_BOOKS_API_KEY` に書きます。
 5. ライブラリを入れて、設定を確かめます。
 
    ```powershell

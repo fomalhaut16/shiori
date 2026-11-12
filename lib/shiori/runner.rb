@@ -22,6 +22,7 @@ module Shiori
         allowed_users: @config.allowed_users,
         notify_channel: @config.notify_channel,
         stall_days: @config.stall_days,
+        lookup: ->(isbn) { BookInfo.lookup(isbn, google_key: @config.google_books_key) },
         logger: @logger,
       )
       @socket = SocketMode.new(

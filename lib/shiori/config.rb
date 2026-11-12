@@ -6,6 +6,7 @@ module Shiori
     :db_path, :backup_dir, :log_path, :keep_backups,
     :notify_hour, :weekly_day, :stall_days,
     :daily_nudge, :weekly_report, :year_report,
+    :google_books_key,
   ) do
     # .env を読み、足りない値は既定値で埋める。必須の値がなければ例外にする。
     def self.load(root = ROOT, env = ENV)
@@ -37,6 +38,8 @@ module Shiori
         daily_nudge: flag.call("DAILY_NUDGE"),
         weekly_report: flag.call("WEEKLY_REPORT"),
         year_report: flag.call("YEAR_REPORT"),
+        # 任意。なければ Google Books へはキーなしで問い合わせる
+        google_books_key: env["GOOGLE_BOOKS_API_KEY"].to_s.strip.then { |k| k.empty? ? nil : k },
       )
     end
 

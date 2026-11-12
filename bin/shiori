@@ -23,6 +23,7 @@ if ARGV.first == "check"
   onoff = ->(v) { v ? "オン" : "オフ" }
   puts "schedule   : #{config.notify_hour}時 / 催促 #{onoff.call(config.daily_nudge)}・" \
        "週報（#{%w[日 月 火 水 木 金 土][config.weekly_day]}曜）#{onoff.call(config.weekly_report)}・年末の一覧 #{onoff.call(config.year_report)}"
+  puts "books key  : #{config.google_books_key ? 'あり' : 'なし（Google Books はキーなしで問い合わせる）'}"
   exit(app["ok"] ? 0 : 1)
 end
 
